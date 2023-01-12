@@ -20,6 +20,7 @@ import { UsersModule } from './users/users.module';
         JWT_SECRET: Joi.string().required(),
         JWT_EXPIRATION: Joi.string().required(),
         MONGODB_URI: Joi.string().required(),
+        HASH_SALT: Joi.number().required().min(5),
       }),
       envFilePath: './apps/auth/.env',
     }),

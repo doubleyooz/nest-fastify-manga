@@ -1,36 +1,38 @@
 import {
   Injectable,
   UnauthorizedException,
-  UnprocessableEntityException,
+  NotAcceptableException,
+  BadRequestException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
 import { CreateUserRequest } from './dto/create-user-request.dto';
 import { UsersRepository } from './users.repository';
-import * as bcrypt from 'bcrypt';
+
 import { User } from './schemas/users.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly configService: ConfigService,
+  ) {}
 
   async createUser(request: CreateUserRequest) {
-    await this.validateCreateUserRequest(request);
-    const user = await this.usersRepository.create({
-      ...request,
-      password: await bcrypt.hash(request.password, 10),
-    });
-    return user;
-  }
-
-  private async validateCreateUserRequest(request: CreateUserRequest) {
-    let user: User;
     try {
-      user = await this.usersRepository.findOne({
-        email: request.email,
+      const user = await this.usersRepository.create({
+        ...request,
+        password: await bcrypt.hash(
+          request.password,
+          this.configService.get<number>('HASH_SALT'),
+        ),
       });
-    } catch (err) {}
 
-    if (user!) {
-      throw new UnprocessableEntityException('Email already exists.');
+      return user;
+    } catch (err) {
+      throw new BadRequestException(
+        err.code === 11000 ? 'Email already in use.' : err,
+      );
     }
   }
 
