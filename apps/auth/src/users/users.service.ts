@@ -48,4 +48,8 @@ export class UsersService {
   async getUser(getUserArgs: Partial<User>) {
     return this.usersRepository.findOne(getUserArgs);
   }
+
+  async findAllUsers(getUserArgs: Partial<User>) {
+    return this.usersRepository.find(getUserArgs);
+  }
 }
