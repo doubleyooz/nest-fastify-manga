@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { CreateUserRequest } from './dto/create-user-request.dto';
+import { UpdateUserRequest } from './dto/update-user-request.dto';
 import { UsersService } from './users.service';
 
 @Controller('auth')
@@ -22,6 +23,11 @@ export class UsersController {
 
   @Get('users')
   async findAllUsers(@Query('name') _name: string) {
-    return this.usersService.getUser(_name ? { name: _name } : {});
+    return this.usersService.findAllUsers(_name ? { name: _name } : {});
+  }
+
+  @Put('update')
+  async updateUser(@Body() request: UpdateUserRequest) {
+    return this.usersService.findUserAndUpdate({}, request);
   }
 }

@@ -13,13 +13,16 @@ import {
 } from 'class-validator';
 
 export class CreateUserRequest {
+  @IsDefined()
+  @IsString()
+  @IsNotEmpty()
   @IsEmail()
   email: string;
 
   @IsString()
   @IsDefined()
   @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[@$!%*?&])[A-Za-zd@$!%*?&]{8,}$/,
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/,
   )
   @IsNotEmpty()
   password: string;

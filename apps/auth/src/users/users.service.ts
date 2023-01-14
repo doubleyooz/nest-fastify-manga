@@ -10,6 +10,7 @@ import { CreateUserRequest } from './dto/create-user-request.dto';
 import { UsersRepository } from './users.repository';
 
 import { User } from './schemas/users.schema';
+import { FilterQuery } from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -51,5 +52,12 @@ export class UsersService {
 
   async findAllUsers(getUserArgs: Partial<User>) {
     return this.usersRepository.find(getUserArgs);
+  }
+
+  async findUserAndUpdate(
+    filterQuery: FilterQuery<User>,
+    getUserArgs: Partial<User>,
+  ) {
+    return this.usersRepository.findOneAndUpdate(filterQuery, getUserArgs);
   }
 }
