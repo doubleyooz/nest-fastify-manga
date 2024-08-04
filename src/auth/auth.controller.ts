@@ -1,10 +1,11 @@
-import { Controller, Post, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Res, Request, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { AuthService } from './auth.service';
 import { IUser } from 'src/models/users/user.interface';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -27,5 +28,14 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.authService.logout(user, response);
+  }
+
+  @Get('login/google')
+  @UseGuards(GoogleAuthGuard)
+  googleAuthRedirect(
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.googleLogin(req, res);
   }
 }

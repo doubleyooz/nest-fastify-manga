@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Request, Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
@@ -32,6 +32,41 @@ export class AuthService {
   async login(user: IUser, res: Response) {
     const tokenPayload: TokenPayload = {
       userId: user._id,
+      tokenVersion: user.tokenVersion,
+    };
+
+    const refreshTokenExpiration = new Date();
+
+    refreshTokenExpiration.setSeconds(
+      refreshTokenExpiration.getSeconds() +
+        this.configService.get<number>('REFRESH_TOKEN_EXPIRATION'),
+    );
+
+    const accessToken = this.jwtService.sign(tokenPayload);
+    const refreshToken = this.jwtService.sign(tokenPayload, {
+      secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+      expiresIn:
+        this.configService.get<number>('REFRESH_TOKEN_EXPIRATION') + 's',
+    });
+
+    res.cookie(AUTHENTICATION_COOKIE, refreshToken, {
+      secure: true,
+      httpOnly: true,
+      expires: refreshTokenExpiration,
+    });
+
+    return { accessToken };
+  }
+
+  async googleLogin(@Request() req, res: Response) {
+    const user = await this.usersService.getUser(
+      { email: req.user.email },
+      { tokenVersion: true },
+    );
+    if (!user) throw new UnauthorizedException('Credentials are not valid.');
+
+    const tokenPayload: TokenPayload = {
+      userId: user._id.toString(),
       tokenVersion: user.tokenVersion,
     };
 

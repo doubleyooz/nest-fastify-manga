@@ -17,6 +17,8 @@ import { AuthModule } from './auth/auth.module';
       validationSchema: Joi.object({
         PORT: Joi.number().required(),
         DATABASE_URL: Joi.string().required(),
+        GOOGLE_CLIENT_ID: Joi.string().required(),
+        GOOGLE_CLIENT_SECRET: Joi.string().required(),
         ACCESS_TOKEN_SECRET: Joi.string().required(),
         ACCESS_TOKEN_EXPIRATION: Joi.number().required(),
         REFRESH_TOKEN_SECRET: Joi.string().required(),
