@@ -1,12 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Response } from 'express';
-import ms from 'ms';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UsersService } from '../users/users.service';
-import { TokenPayload } from './token-payload.interface';
-import { IUser } from 'src/users/user.interface';
+import { UsersService } from '../models/users/users.service';
+import { TokenPayload } from './interfaces/token-payload.interface';
+import { IUser } from 'src/models/users/user.interface';
+import { AUTHENTICATION_COOKIE } from './constants/auth-cookie';
 
 @Injectable()
 export class AuthService {
@@ -16,37 +16,50 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
   async verifyUser(email: string, password: string) {
-    try {
-      const user = await this.usersService.getUser({ email });
+    const user = await this.usersService.getUser(
+      { email },
+      { password: true, tokenVersion: true },
+    );
+    if (!user) throw new UnauthorizedException('Credentials are not valid.');
 
-      const authenticated = await bcrypt.compare(password, user.password);
-
-      if (!authenticated) throw new UnauthorizedException();
-      return user;
-    } catch (err) {
+    const authenticated = await bcrypt.compare(password, user.password);
+    if (!authenticated)
       throw new UnauthorizedException('Credentials are not valid.');
-    }
+
+    return user;
   }
 
-  async login(user: IUser, response: Response) {
-    const expires = new Date();
-    expires.setMilliseconds(
-      expires.getMilliseconds() +
-        ms(this.configService.get<string>('JWT_EXPIRATION')),
-    );
-
+  async login(user: IUser, res: Response) {
     const tokenPayload: TokenPayload = {
       userId: user._id,
+      tokenVersion: user.tokenVersion,
     };
 
-    const token = this.jwtService.sign(tokenPayload);
+    const refreshTokenExpiration = new Date();
 
-    response.cookie('Authentication', token, {
-      secure: true,
-      httpOnly: true,
-      expires,
+    refreshTokenExpiration.setSeconds(
+      refreshTokenExpiration.getSeconds() +
+        this.configService.get<number>('REFRESH_TOKEN_EXPIRATION'),
+    );
+
+    const accessToken = this.jwtService.sign(tokenPayload);
+    const refreshToken = this.jwtService.sign(tokenPayload, {
+      secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+      expiresIn:
+        this.configService.get<number>('REFRESH_TOKEN_EXPIRATION') + 's',
     });
 
-    return { tokenPayload };
+    res.cookie(AUTHENTICATION_COOKIE, refreshToken, {
+      secure: true,
+      httpOnly: true,
+      expires: refreshTokenExpiration,
+    });
+
+    return { accessToken };
+  }
+
+  async logout(user: IUser, response: Response) {
+    await this.usersService.updateTokenVersion(user._id);
+    response.clearCookie(AUTHENTICATION_COOKIE);
   }
 }

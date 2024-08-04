@@ -3,6 +3,7 @@ import {
   UnprocessableEntityException,
   NotFoundException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,27 +23,41 @@ export class UsersService {
   async createUser(data: CreateUserRequest) {
     console.log(data);
     try {
-      return await this.userModel.create({
-        data: {
-          ...data,
-          password: await bcrypt.hash(
-            data.password,
-            this.configService.get<number>('HASH_SALT'),
-          ),
-        },
-        select: { id: true, email: true },
+      const newUser = await this.userModel.create({
+        ...data,
+        password: await bcrypt.hash(
+          data.password,
+          this.configService.get<number>('HASH_SALT'),
+        ),
       });
+      console.log(newUser);
+      return newUser;
     } catch (err) {
       console.log(err);
-      if (err.code === '11000') {
+      if (err.code == '11000') {
         throw new UnprocessableEntityException('Email already taken');
       }
-      throw err;
+      throw new InternalServerErrorException({
+        code: err.code,
+        msg: 'Error while creating user',
+      });
     }
   }
 
-  async getUser(filter: FilterQuery<UserDocument>) {
-    return await this.userModel.findOne({
+  async getUser(
+    filter: FilterQuery<UserDocument>,
+    select: FilterQuery<UserDocument> = {},
+  ) {
+    return await this.userModel.findOne(
+      {
+        ...filter,
+      },
+      select,
+    );
+  }
+
+  async findAll(filter: FilterQuery<UserDocument>) {
+    return await this.userModel.find({
       where: filter,
     });
   }
@@ -51,6 +66,18 @@ export class UsersService {
     const id = filter._id;
 
     const document = await this.userModel.findById(id).exec();
+    if (!document) {
+      this.logger.error(`No user with user id ${id} was found.`, null);
+      throw new NotFoundException('User not found.');
+    }
+    return document;
+  }
+
+  async updateTokenVersion(id: string): Promise<User> {
+    const document = await this.userModel.findOneAndUpdate(
+      { _id: id },
+      { $inc: { tokenVersion: 1 } },
+    );
     if (!document) {
       this.logger.error(`No user with user id ${id} was found.`, null);
       throw new NotFoundException('User not found.');
